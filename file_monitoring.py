@@ -21,7 +21,7 @@ class Monitor(threading.Thread):
 		self.observer = Observer()
 
 	def run(self):
-		print "Monitoring folder %s now" % self.DIRECTORY_TO_WATCH
+		print("Monitoring folder %s now" % self.DIRECTORY_TO_WATCH)
 		#logging.debug('running')
 		event_handler = Handler()
 		# paramaters for observer (event handler, a directory to monitor, recursive is enabled)

