@@ -15,7 +15,10 @@ import _thread
 import setproctitle
 
 """
-Setup: pip3 install pycrypto setproctitle scapy
+Setup: 
+dnf install python3-pip
+pip3 install pycrypto setproctitle scapy
+pip3 install watchdog3
 """
 
 TTL = 234
