@@ -15,6 +15,7 @@ import _thread
 import setproctitle
 
 """
+dnf install python3-pip
 Setup: pip3 install pycryptodome setproctitle scapy watchdog3
 """
 

