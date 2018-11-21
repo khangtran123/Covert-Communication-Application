@@ -15,7 +15,7 @@ import _thread
 import setproctitle
 
 """
-Setup: pip3 install pycrypto setproctitle scapy
+Setup: pip3 install pycryptodome setproctitle scapy watchdog3
 """
 
 TTL = 234
@@ -60,8 +60,6 @@ def packatizer(msg):
 
     # If not an array (if there is only one packet.)
     if(type(msg) is str):
-        # The transmissions position and total will be 1.
-        # i.e. 1/1 message to send.
         packets.append(craft(msg))
     # If an array (if there is more than one packet)
     elif(type(msg) is list):

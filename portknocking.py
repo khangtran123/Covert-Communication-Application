@@ -16,9 +16,9 @@ def knock(mode:int,ip:str):
 
     if(mode==0):
         cports = [8503, 8504, 8505]
-        SYN = IP(dst="192.168.0.45")/UDP(dport=cports)
+        SYN = IP(dst=ip)/UDP(dport=cports)
     elif(mode==1):
         oports = [8500, 8501, 8502]
-        SYN = IP(dst="192.168.0.45")/UDP(dport=oports)
+        SYN = IP(dst=ip)/UDP(dport=oports)
      
     send(SYN, verbose=False)

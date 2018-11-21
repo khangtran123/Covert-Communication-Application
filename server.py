@@ -13,7 +13,7 @@ import _thread
 import setproctitle
 
 """
-Setup: pip3 install pycrypto setproctitle scapy watchdog
+Setup: pip3 install pycryptodome setproctitle scapy watchdog3
 """
 
 TTL = 222
@@ -39,9 +39,7 @@ def secret_send(msg: str, type: str = 'command'):
         msg = message_to_bits(msg)
         chunks = message_spliter(msg)
         packets = packatizer(chunks)
-        for packet in packets:
-            send(packet, verbose=False)
-            pass
+        send(packet, verbose=True)
 
 
 def packatizer(msg):
