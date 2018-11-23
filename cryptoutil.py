@@ -6,7 +6,7 @@ encryptionKey = "passyourwordssss"
 IV = "whatsthedealwith"
 
 
-def encrypt(message: str) -> str:
+def encrypt(message:str) -> str:
     """[summary]
     
     Arguments:
@@ -18,8 +18,10 @@ def encrypt(message: str) -> str:
 
     global encryptionKey
     global IV
-    encryptor = AES.new(encryptionKey, AES.MODE_CFB, IV=IV)
-    return encryptor.encrypt(message)
+    
+    encryptor = AES.new(encryptionKey.encode('utf-8'), AES.MODE_CFB, IV=IV.encode('utf-8'))
+    enc = encryptor.encrypt(bytearray(message.encode('utf-8')))
+    return enc
 
 
 def decrypt(command: str) -> str:
@@ -34,6 +36,6 @@ def decrypt(command: str) -> str:
 
     global encryptionKey
     global IV
-    decryptor = AES.new(encryptionKey, AES.MODE_CFB, IV=IV)
-    plain = decryptor.decrypt(command)
+    decryptor = AES.new(encryptionKey.encode('utf-8'), AES.MODE_CFB, IV=IV.encode('utf-8'))
+    plain = decryptor.decrypt(bytearray(command)).decode('utf-8')
     return plain

