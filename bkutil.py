@@ -1,38 +1,33 @@
 #!/usr/bin/python3
-#import bkcrypt
-
 
 def message_to_bits(message) -> str:
-    """[summary]
+    """Get the ASCII value of each character, and convert that value to binary
+    after zfill it to have a total length of 8 characters
     
     Arguments:
-        message {[type]} -- [description]
+        message {str} -- message that will have each character converted to bits
     
     Returns:
-        str -- [description]
+        str -- a string containing the binary of message
     """
 
     # Create the string that will hold all the bits.
     messageData = ""
-    # For each character in the string
     for c in message:
-        # Get the ASCII value of each character, and convert that value to binary
-        # Also zfill it to have a total length of 8 characters (needed for
-        # packetizing later)
         var = bin(ord(c))[2:].zfill(8)
-        # Concatenate with the placeholder
+        # Concatenate with the placeholder 
         messageData += str(var)
     return messageData
 
 
 def message_spliter(msg: str):
-    """[summary]
+    """splits a string into 32-bit chunks
     
     Arguments:
-        msg {str} -- [description]
+        msg {str} -- string that will be split into chunks
     
     Returns:
-        [type] -- [description]
+        [list] -- list of string with each element being 32 bits
     """
 
     length = 32  # bits in seq #
@@ -71,13 +66,10 @@ def message_spliter(msg: str):
 
 
 def lengthChecker(field):
-    """[summary]
+    """Converts the bits to the nearest divisible by 8
     
     Arguments:
-        field {[type]} -- [description]
-    
-    Returns:
-        [type] -- [description]
+        field {string} -- [string containing binary]=
     """
 
     covertContent = 0
@@ -96,39 +88,18 @@ def lengthChecker(field):
 
 
 def text_from_bits(bits, encoding='utf-8', errors='surrogatepass'):
-    """[summary]
+    """Convert binary to ASCII
     
     Arguments:
-        bits {[type]} -- [description]
+        bits {bin} -- bits being converted to ASCII
     
     Keyword Arguments:
-        encoding {str} -- [description] (default: {'utf-8'})
-        errors {str} -- [description] (default: {'surrogatepass'})
+        encoding {str} -- encoding of string being returned (default: {'utf-8'})
+        errors {str} -- (default: {'surrogatepass'})
     
     Returns:
-        [type] -- [description]
+        [str] -- [ASCII characters]
     """
 
     n = int(bits, 2)
     return n.to_bytes((n.bit_length() + 7) // 8, 'big').decode(encoding, errors) or '\0'
-
-
-'''
-def file_to_bits(filePath) -> str:
-    #Open the file for modifications
-    file = open(filePath, "rb")
-    #Create a placeholder
-    binaryString = ""
-    #Convert whatever is in the file to bytes
-    readFile = bytearray(file.read())
-    fileName = filePath.split("/")
-    fileName = encrypt(fileName[len(fileName) - 1])
-    #Craft a header
-    header = message_to_bits(fileName+"00000000");#0s are so we can tell its the file name
-    #Add the header to the string
-    binaryString += header
-    #convert bytes into bits
-    for bit in readFile:
-        binaryString += bin(bit)[2:].zfill(8)
-    return binaryString
-'''
