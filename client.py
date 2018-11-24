@@ -3,6 +3,10 @@
 import optparse
 import os
 import sys
+<<<<<<< HEAD
+=======
+import time
+>>>>>>> 65cee74de58f2622c2b31996762e51a1d4c91a2e
 from packetutil import *
 from bkutil import *
 from multiprocessing import Process

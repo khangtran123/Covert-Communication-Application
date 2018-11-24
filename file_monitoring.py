@@ -32,7 +32,7 @@ class Monitor(threading.Thread):
         threading.Thread.__init__(self)
         self.observer = Observer()
         self.addr = addr
-
+        
     def run(self):
         """overwriten function from thread class. Runs event listner.
         """

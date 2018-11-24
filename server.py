@@ -4,6 +4,10 @@ import optparse
 import os.path
 import subprocess
 import sys
+<<<<<<< HEAD
+=======
+import time
+>>>>>>> 65cee74de58f2622c2b31996762e51a1d4c91a2e
 from packetutil import *
 from bkutil import *
 from multiprocessing import Process
@@ -13,6 +17,7 @@ import _thread
 import argparse
 import setproctitle
 
+<<<<<<< HEAD
 # parse command line argument
 arg_parser = argparse.ArgumentParser(
     prog='Backdoor',
@@ -23,6 +28,21 @@ arg_parser.add_argument('-i', dest='ip', type = str, help = 'victim IP', require
 args = arg_parser.parse_args()
 
 #Global vars
+=======
+"""
+Setup: pip3 install pycryptodome setproctitle scapy watchdog3
+"""
+
+# parse command line argument
+arg_parser = argparse.ArgumentParser(
+    prog='Backdoor',
+    description='COMP 8505 Final Assignment by Peyman Tehrani Parsa & Khang Tran'
+)
+arg_parser.add_argument('-p', dest='port', type = int, help = 'victim PORT', default=8888, const=8888, nargs='?')
+arg_parser.add_argument('-i', dest='ip', type = str, help = 'victim IP', required=True)
+args = arg_parser.parse_args()
+
+>>>>>>> 65cee74de58f2622c2b31996762e51a1d4c91a2e
 TTL = 222
 TTLKEY = 234
 victim = (args.ip, args.port)
