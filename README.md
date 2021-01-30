@@ -5,5 +5,7 @@ The idea of this application is to embed the executable malware into a USB. Once
 Embedded Payload
 
 The following lists the payload in the embedded USB
-1. hehe
+1. Backdoor Payload 
+2. File Creation Monitoring
+3. Keystroke Monitoring 
 
